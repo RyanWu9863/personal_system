@@ -128,8 +128,11 @@ STATICFILES_DIRS = [BASE_DIR / "static"]
 
 STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
-    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
+    # 開發與測試用單純版本；manifest 版本在下面的 if not DEBUG 才啟用
+    "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
 }
+
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 
 # Email
@@ -146,6 +149,10 @@ LOGIN_REDIRECT_URL = "todo:list"
 LOGOUT_REDIRECT_URL = "todo:list"
 # 正式環境專用的安全設定（DEBUG=False 時才生效）
 if not DEBUG:
+    # manifest 版本需要 collectstatic 產生的對照表，只在正式環境用
+    STORAGES["staticfiles"]["BACKEND"] = (
+        "whitenoise.storage.CompressedManifestStaticFilesStorage"
+    )
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
