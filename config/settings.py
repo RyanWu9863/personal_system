@@ -29,7 +29,7 @@ DEBUG = os.environ.get("DEBUG", "True") == "True"
 
 ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
 
-RENDER_HOST = os.environ.get("RENDER_EXTRENAL_HOSTNAME")
+RENDER_HOST = os.environ.get("RENDER_EXTERNAL_HOSTNAME")
 if RENDER_HOST:
     ALLOWED_HOSTS.append(RENDER_HOST)
     CSRF_TRUSTED_ORIGINS = [f"https://{RENDER_HOST}"]
@@ -144,3 +144,9 @@ MAILERS = {
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "todo:list"
 LOGOUT_REDIRECT_URL = "todo:list"
+# 正式環境專用的安全設定（DEBUG=False 時才生效）
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
