@@ -5,7 +5,7 @@ app_name = "todo"
 
 urlpatterns = [
     path("", views.task_list, name="list"),
-    path("singup/", views.signup, name="signup"),
+    path("signup/", views.signup, name="signup"),
     path("add/", views.task_add, name="add"),
     path("<int:pk>/toggle/", views.task_toggle, name="toggle"),
     path("<int:pk>/delete/", views.task_delete, name="delete"),

@@ -14,7 +14,9 @@ def signup(request):
             return redirect("todo:list")
     else:
         form = UserCreationForm()
-        return render(request, "registration/signup.html", {"form": form})
+
+    # 不論是 GET，還是 POST 但驗證失敗，都要把表單重新畫出來
+    return render(request, "registration/signup.html", {"form": form})
 
 @login_required
 def task_list(request, form=None):
