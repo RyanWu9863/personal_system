@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}待辦清單{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+
+    <div class="card mb-4 shadow-sm">
+      <div class="card-body">
+        <form method="post" action="{% url 'todo:add' %}" novalidate>
+          {% csrf_token %}
+          <div class="row g-2">
+            <div class="col-md-6">
+              {{ form.title }}
+              {% for error in form.title.errors %}
+                <div class="text-danger small mt-1">{{ error }}</div>
+              {% endfor %}
+            </div>
+            <div class="col-md-4">{{ form.due_date }}</div>
+            <div class="col-md-2 d-grid">
+              <button type="submit" class="btn btn-primary">新增</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <ul class="list-group shadow-sm">
+      {% for task in tasks %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          <span>
+            {% if task.is_done %}
+              <s class="text-muted">{{ task.title }}</s>
+            {% else %}
+              {{ task.title }}
+            {% endif %}
+            {% if task.due_date %}
+              <span class="badge bg-secondary ms-2">{{ task.due_date|date:"m/d" }}</span>
+            {% endif %}
+          </span>
+
+          <form method="post" class="d-flex gap-2 mb-0">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-sm btn-outline-success"
+                    formaction="{% url 'todo:toggle' task.pk %}">
+              {% if task.is_done %}復原{% else %}完成{% endif %}
+            </button>
+            <button type="submit" class="btn btn-sm btn-outline-danger"
+                    formaction="{% url 'todo:delete' task.pk %}">刪除</button>
+          </form>
+        </li>
+      {% empty %}
+        <li class="list-group-item text-center text-muted py-4">目前沒有待辦事項</li>
+      {% endfor %}
+    </ul>
+
+  </div>
+</div>
+{% endblock %}
