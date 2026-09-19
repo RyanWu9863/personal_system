@@ -1,5 +1,6 @@
 import json
-
+from django.http import HttpResponse
+from .forms import TaskApiForm
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
@@ -61,3 +62,41 @@ def task_collection(request):
     task.owner = user
     task.save()
     return JsonResponse(serialize_task(task), status=201)
+
+@csrf_exempt
+@require_http_methods(["GET", "PATCH", "DELETE"])
+def task_detail(request, pk):
+    user = user_from_token(request)
+    if user is None:
+        return error("unauthorized", "缺少或無效的 API token", 401)
+
+    try:
+        task = Task.objects.get(pk=pk, owner=user)
+    except Task.DoesNotExist:
+        return error("not_found", "找不到這筆待辦", 404)
+
+    if request.method == "GET":
+        return JsonResponse(serialize_task(task))
+
+    if request.method == "DELETE":
+        task.delete()
+        return HttpResponse(status=204)
+
+    try:
+        payload = json.loads(request.body)
+    except json.JSONDecodeError:
+        return error("invalid_json", "請求內容不是合法的 JSON", 400)
+
+    data = {
+        "title": task.title,
+        "due_date": task.due_date,
+        "is_done": task.is_done,
+    }
+    data.update(payload)          # 只覆蓋這次送來的欄位
+
+    form = TaskApiForm(data, instance=task, user=user)
+    if not form.is_valid():
+        return error("validation_error", "資料格式有誤", 400, fields=form.errors)
+
+    task = form.save()
+    return JsonResponse(serialize_task(task))

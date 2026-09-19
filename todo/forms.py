@@ -29,6 +29,12 @@ class TaskForm(forms.ModelForm):
         qs = Task.objects.filter(title=title, is_done=False)
         if self.user is not None:
             qs = qs.filter(owner=self.user)
+        if self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
         if qs.exists():
             raise forms.ValidationError("已經有一筆一樣的待辦還沒完成")       
         return title
+    
+class TaskApiForm(TaskForm):
+    class Meta(TaskForm.Meta):
+        fields = ["title", "due_date", "is_done"]

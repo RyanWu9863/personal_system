@@ -141,3 +141,61 @@ class TaskApiTests(TestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json()["error"]["code"], "invalid_json")
+
+class TaskDetailApiTests(TestCase):
+    def setUp(self):
+        self.alice = User.objects.create_user(username="alice", password="test-pw-1")
+        self.bob = User.objects.create_user(username="bob", password="test-pw-2")
+        self.token = ApiToken.objects.create(user=self.alice)
+        self.task = Task.objects.create(owner=self.alice, title="寫作業")
+        self.bob_task = Task.objects.create(owner=self.bob, title="鮑伯的待辦")
+        self.headers = {"authorization": f"Bearer {self.token.key}"}
+
+    def url(self, task):
+        return reverse("api-task-detail", args=[task.pk])
+
+    def test_get_single_task(self):
+        """讀得到自己的單筆待辦。"""
+        response = self.client.get(self.url(self.task), headers=self.headers)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["title"], "寫作業")
+
+    def test_cannot_read_others_task(self):
+        """讀別人的要回 JSON 格式的 404。"""
+        response = self.client.get(self.url(self.bob_task), headers=self.headers)
+
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.json()["error"]["code"], "not_found")
+
+    def test_patch_only_is_done_keeps_title(self):
+        """只送 is_done，標題不能被清掉。"""
+        response = self.client.patch(
+            self.url(self.task),
+            data=json.dumps({"is_done": True}),
+            content_type="application/json",
+            headers=self.headers,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.task.refresh_from_db()
+        self.assertTrue(self.task.is_done)
+        self.assertEqual(self.task.title, "寫作業")
+
+    def test_patch_with_unchanged_title_is_allowed(self):
+        """標題原封不動送回來，不該被自己的重複檢查擋下。"""
+        response = self.client.patch(
+            self.url(self.task),
+            data=json.dumps({"title": "寫作業"}),
+            content_type="application/json",
+            headers=self.headers,
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_delete_returns_204(self):
+        """刪除回 204，資料真的消失。"""
+        response = self.client.delete(self.url(self.task), headers=self.headers)
+
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(Task.objects.filter(pk=self.task.pk).exists())
