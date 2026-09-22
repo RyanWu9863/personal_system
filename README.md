@@ -2,7 +2,7 @@
 
 [![tests](https://github.com/RyanWu9863/personal_system/actions/workflows/tests.yml/badge.svg)](https://github.com/RyanWu9863/personal_system/actions/workflows/tests.yml)
 
-多人待辦清單。同一份資料有兩種用法：**網頁介面**給人用，**JSON API**給程式用，兩邊共用同一套驗證規則。附 40 個測試，測試不通過就不會部署。
+多人待辦清單。同一份資料有兩種用法：**網頁介面**給人用，**JSON API**給程式用，兩邊共用同一套驗證規則。附 41 個測試，測試不通過就不會部署。
 
 **線上 Demo** → <https://personal-system-r5pf.onrender.com>
 Render 免費方案會休眠，第一次開啟約需等 30 秒。測試帳號：`demo` / `zxcv123456`
@@ -24,7 +24,7 @@ todo/
   forms.py       TaskForm 驗證規則；TaskApiForm 繼承它，只多開放 is_done
   views.py       網頁介面：清單、新增、切換完成、刪除、註冊、設定
   api.py         JSON API：token 認證、統一錯誤格式、序列化
-  tests.py       40 個測試
+  tests.py       41 個測試
 build.sh         部署腳本：安裝 → 跑測試 → 收集靜態檔 → 資料庫遷移
 ```
 
@@ -39,6 +39,11 @@ build.sh         部署腳本：安裝 → 跑測試 → 收集靜態檔 → 資
 **錯誤格式統一**　所有 API 錯誤都是 `{"error": {"code", "message", "fields?"}}`。壞 JSON 回 400 而不是 500，欄位驗證失敗會回傳是哪個欄位錯。
 
 **安全設定只在正式環境生效**　HTTPS 強制轉址、Secure cookie、靜態檔 manifest 都包在 `if not DEBUG` 裡，本機開發與測試不會被轉址干擾。
+
+**外部服務失敗不該變成 500**　寄信要連外部服務，本來就可能失敗——服務中斷、
+額度用完、連接埠被平台擋掉。`PasswordResetView` 接住這個例外，記進 log 並回到表單
+顯示訊息，同時設 `EMAIL_TIMEOUT` 讓連不上時 10 秒就放棄，不會一路拖到 gunicorn
+逾時砍掉工作程序。
 
 **認證頁模板放在專案層**　Django 後台自己帶了 `registration/password_reset_*.html`，
 而 `django.contrib.admin` 在 `INSTALLED_APPS` 裡排在本專案前面，放在 app 層會被它蓋掉——
@@ -102,6 +107,6 @@ python manage.py runserver
 ## 已知取捨與下一步
 
 - **手寫 API 而非用 Django REST Framework**：為了看清認證、序列化、錯誤處理各自在做什麼。專案再長大就該換成 DRF。
-- **忘記密碼的信預設只印在 log 裡**（`EMAIL_BACKEND` 未設時走 console）。要真的寄出需設定 SMTP 相關環境變數。
+- **線上的忘記密碼信寄不出去**，這是平台限制不是程式問題：Render 免費方案封鎖對外的 SMTP 連接埠（25/465/587），連線不會被拒絕而是被丟棄。專案預設的 console backend 會把信寫進伺服器 log，流程本身完整；要真的寄出，得改用走 HTTPS 的寄信 API（例如 Brevo、Mailgun）或升級方案。`EMAIL_BACKEND` 是環境變數，兩者都不必改程式。
 - **API token 以明文存放**。真實系統應只存雜湊、且只在產生當下顯示一次；這裡為了讓使用者隨時查得到而保留明文，改動範圍不大但會犧牲可查看性。
 - **測試只跑一個 Python 版本**（3.13），也還沒量測涵蓋率。
