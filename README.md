@@ -2,7 +2,7 @@
 
 [![tests](https://github.com/RyanWu9863/personal_system/actions/workflows/tests.yml/badge.svg)](https://github.com/RyanWu9863/personal_system/actions/workflows/tests.yml)
 
-多人待辦清單。同一份資料有兩種用法：**網頁介面**給人用，**JSON API**給程式用，兩邊共用同一套驗證規則。附 17 個測試，測試不通過就不會部署。
+多人待辦清單。同一份資料有兩種用法：**網頁介面**給人用，**JSON API**給程式用，兩邊共用同一套驗證規則。附 24 個測試，測試不通過就不會部署。
 
 **線上 Demo** → <https://personal-system-r5pf.onrender.com>
 Render 免費方案會休眠，第一次開啟約需等 30 秒。測試帳號：`demo` / `zxcv123456`
@@ -24,7 +24,7 @@ todo/
   forms.py       TaskForm 驗證規則；TaskApiForm 繼承它，只多開放 is_done
   views.py       網頁介面：清單、新增、切換完成、刪除
   api.py         JSON API：token 認證、統一錯誤格式、序列化
-  tests.py       17 個測試
+  tests.py       24 個測試
 build.sh         部署腳本：安裝 → 跑測試 → 收集靜態檔 → 資料庫遷移
 ```
 
@@ -40,11 +40,14 @@ build.sh         部署腳本：安裝 → 跑測試 → 收集靜態檔 → 資
 
 **安全設定只在正式環境生效**　HTTPS 強制轉址、Secure cookie、靜態檔 manifest 都包在 `if not DEBUG` 裡，本機開發與測試不會被轉址干擾。
 
+**token 輪替而非累積**　重新產生時覆寫同一筆記錄的金鑰，而不是多開一筆。一個使用者永遠只有一把有效 token，舊的立刻失效——金鑰外流時使用者能自行處理，不需要管理員介入。輪替端點只收 POST，避免被 GET 誤觸。
+
 **測試是部署的前置條件**　`build.sh` 裡 `manage.py test` 失敗就中斷，壞的程式碼進不了正式環境。
 
 ## API
 
-token 從管理後台為使用者建立，以 `Authorization: Bearer <token>` 帶入。
+登入後在 `/token/` 自助產生 token，以 `Authorization: Bearer <token>` 帶入。
+重新產生會直接輪替同一筆記錄的金鑰，舊的立刻失效。
 
 | 方法 | 路徑 | 說明 |
 |---|---|---|
@@ -91,5 +94,5 @@ python manage.py runserver
 ## 已知取捨與下一步
 
 - **手寫 API 而非用 Django REST Framework**：為了看清認證、序列化、錯誤處理各自在做什麼。專案再長大就該換成 DRF。
-- **API token 目前只能從管理後台建立**，還缺一個讓使用者自助產生的頁面。
+- **API token 以明文存放**。真實系統應只存雜湊、且只在產生當下顯示一次；這裡為了讓使用者隨時查得到而保留明文，改動範圍不大但會犧牲可查看性。
 - **測試只跑一個 Python 版本**（3.13），也還沒量測涵蓋率。

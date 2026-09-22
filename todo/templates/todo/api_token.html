@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}API token{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+
+    <h1 class="h4 mb-3">API token</h1>
+    <p class="text-muted">
+      用這把 token 就能以程式存取自己的待辦。它等同於你的帳號密碼，請不要外流。
+    </p>
+
+    <div class="card mb-4 shadow-sm">
+      <div class="card-body">
+        {% if token %}
+          <label class="form-label small text-muted mb-1">你的 token</label>
+          <input type="text" class="form-control font-monospace mb-2"
+                 value="{{ token.key }}" readonly onclick="this.select()">
+          <div class="small text-muted">建立於 {{ token.created_at|date:"Y-m-d H:i" }}</div>
+        {% else %}
+          <p class="mb-0 text-muted">你還沒有 token，按下面的按鈕產生一把。</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <form method="post" action="{% url 'todo:api_token_regenerate' %}" class="mb-4">
+      {% csrf_token %}
+      {% if token %}
+        <button type="submit" class="btn btn-outline-danger"
+                onclick="return confirm('重新產生後，舊的 token 會立刻失效，確定嗎？')">
+          重新產生
+        </button>
+        <span class="small text-muted ms-2">舊的 token 會立刻失效</span>
+      {% else %}
+        <button type="submit" class="btn btn-primary">產生 token</button>
+      {% endif %}
+    </form>
+
+    {% if token %}
+      <h2 class="h6 text-muted">用法</h2>
+      <pre class="bg-white border rounded p-3 small"><code>curl -H "Authorization: Bearer {{ token.key }}" \
+  {{ request.scheme }}://{{ request.get_host }}/api/tasks/</code></pre>
+    {% endif %}
+
+    <a href="{% url 'todo:list' %}" class="small">← 回待辦清單</a>
+
+  </div>
+</div>
+{% endblock %}

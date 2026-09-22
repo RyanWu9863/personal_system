@@ -1,9 +1,10 @@
 from django.shortcuts import render ,redirect, get_object_or_404
-from .models import Task
+from .models import ApiToken, Task, generate_api_key
 from .forms import TaskForm
 from django.contrib.auth import login as auth_login
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import UserCreationForm
+from django.views.decorators.http import require_POST
 
 def signup(request):
     if request.method == "POST":
@@ -51,3 +52,20 @@ def task_toggle(request, pk):
 def task_delete(request, pk):
     get_object_or_404(Task, pk=pk, owner=request.user).delete()
     return redirect("todo:list")
+
+@login_required
+def api_token(request):
+    """顯示自己的 API token；還沒有就顯示產生按鈕。"""
+    return render(request, "todo/api_token.html", {
+        "token": ApiToken.objects.filter(user=request.user).first(),
+    })
+
+@login_required
+@require_POST
+def api_token_regenerate(request):
+    """產生或重新產生 token。舊的 key 會立刻失效。"""
+    token, created = ApiToken.objects.get_or_create(user=request.user)
+    if not created:
+        token.key = generate_api_key()
+        token.save()
+    return redirect("todo:api_token")

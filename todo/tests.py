@@ -211,3 +211,80 @@ class TaskDetailApiTests(TestCase):
 
         self.assertEqual(response.status_code, 204)
         self.assertFalse(Task.objects.filter(pk=self.task.pk).exists())
+class ApiTokenPageTests(TestCase):
+    """使用者自助產生 API token 的頁面。"""
+
+    def setUp(self):
+        self.alice = User.objects.create_user(username="alice", password="test-pw-1")
+        self.page = reverse("todo:api_token")
+        self.regenerate = reverse("todo:api_token_regenerate")
+
+    def test_anonymous_is_redirected_to_login(self):
+        """未登入不能看 token 頁。"""
+        response = self.client.get(self.page)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/accounts/login/", response["Location"])
+
+    def test_page_does_not_create_token_by_itself(self):
+        """只是開頁面不該憑空生出 token。"""
+        self.client.force_login(self.alice)
+
+        response = self.client.get(self.page)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(ApiToken.objects.filter(user=self.alice).exists())
+
+    def test_post_creates_token(self):
+        """按下產生後才會有 token。"""
+        self.client.force_login(self.alice)
+
+        response = self.client.post(self.regenerate)
+
+        self.assertRedirects(response, self.page)
+        self.assertTrue(ApiToken.objects.filter(user=self.alice).exists())
+
+    def test_regenerate_replaces_the_old_key(self):
+        """重新產生會換一把新的，不是再開一筆。"""
+        self.client.force_login(self.alice)
+        self.client.post(self.regenerate)
+        old_key = ApiToken.objects.get(user=self.alice).key
+
+        self.client.post(self.regenerate)
+
+        self.assertEqual(ApiToken.objects.filter(user=self.alice).count(), 1)
+        self.assertNotEqual(ApiToken.objects.get(user=self.alice).key, old_key)
+
+    def test_old_key_stops_working_after_regenerate(self):
+        """輪替之後，舊 key 打 API 要被擋下來。"""
+        self.client.force_login(self.alice)
+        self.client.post(self.regenerate)
+        old_key = ApiToken.objects.get(user=self.alice).key
+        self.client.post(self.regenerate)
+
+        response = self.client.get(
+            reverse("api-tasks"), headers={"authorization": f"Bearer {old_key}"}
+        )
+
+        self.assertEqual(response.status_code, 401)
+
+    def test_regenerate_rejects_get(self):
+        """輪替只接受 POST，用 GET 打要被擋。"""
+        self.client.force_login(self.alice)
+
+        response = self.client.get(self.regenerate)
+
+        self.assertEqual(response.status_code, 405)
+        self.assertFalse(ApiToken.objects.filter(user=self.alice).exists())
+
+    def test_page_shows_own_token_but_not_others(self):
+        """頁面顯示自己的 token，看不到別人的。"""
+        bob = User.objects.create_user(username="bob", password="test-pw-2")
+        bob_token = ApiToken.objects.create(user=bob)
+        alice_token = ApiToken.objects.create(user=self.alice)
+        self.client.force_login(self.alice)
+
+        response = self.client.get(self.page)
+
+        self.assertContains(response, alice_token.key)
+        self.assertNotContains(response, bob_token.key)

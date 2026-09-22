@@ -16,6 +16,7 @@
       {% if user.is_authenticated %}
         <div class="d-flex align-items-center gap-2">
           <span class="text-white-50 small">{{ user.username }}</span>
+          <a class="btn btn-sm btn-outline-light" href="{% url 'todo:api_token' %}">API token</a>
           <form method="post" action="{% url 'logout' %}" class="mb-0">
             {% csrf_token %}
             <button type="submit" class="btn btn-sm btn-outline-light">登出</button>
