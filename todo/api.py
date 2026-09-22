@@ -14,7 +14,7 @@ def serialize_task(task):
         "id": task.pk,
         "title": task.title,
         "is_done": task.is_done,
-        "due_date": task.due_date_isoformat() if task.due_date else None,
+        "due_date": task.due_date.isoformat() if task.due_date else None,
         "created_at": task.created_at.isoformat(),
     }
 

@@ -1,3 +1,5 @@
+from datetime import date
+
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
@@ -160,6 +162,16 @@ class TaskDetailApiTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["title"], "寫作業")
+
+    def test_due_date_is_serialized_as_iso_string(self):
+        """有截止日的待辦要讀得到，日期格式是 YYYY-MM-DD。"""
+        self.task.due_date = date(2026, 1, 31)
+        self.task.save()
+
+        response = self.client.get(self.url(self.task), headers=self.headers)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["due_date"], "2026-01-31")
 
     def test_cannot_read_others_task(self):
         """讀別人的要回 JSON 格式的 404。"""
