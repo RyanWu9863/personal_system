@@ -16,7 +16,10 @@
       {% if user.is_authenticated %}
         <div class="d-flex align-items-center gap-2">
           <span class="text-white-50 small">{{ user.username }}</span>
-          <a class="btn btn-sm btn-outline-light" href="{% url 'todo:api_token' %}">API token</a>
+          {% if user.is_staff %}
+            <a class="btn btn-sm btn-outline-light" href="{% url 'admin:index' %}">後台</a>
+          {% endif %}
+          <a class="btn btn-sm btn-outline-light" href="{% url 'todo:settings' %}">設定</a>
           <form method="post" action="{% url 'logout' %}" class="mb-0">
             {% csrf_token %}
             <button type="submit" class="btn btn-sm btn-outline-light">登出</button>
@@ -28,7 +31,6 @@
           <a class="btn btn-sm btn-light" href="{% url 'todo:signup' %}">註冊</a>
         </div>
       {% endif %}
-      <a class="nav-link text-white-50" href="/admin/">後台</a>
     </div>
   </nav>
 

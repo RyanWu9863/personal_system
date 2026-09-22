@@ -6,6 +6,7 @@
 <div class="row justify-content-center">
   <div class="col-lg-8">
 
+    <nav class="small mb-2"><a href="{% url 'todo:settings' %}">設定</a> › API token</nav>
     <h1 class="h4 mb-3">API token</h1>
     <p class="text-muted">
       用這把 token 就能以程式存取自己的待辦。它等同於你的帳號密碼，請不要外流。
@@ -14,10 +15,17 @@
     <div class="card mb-4 shadow-sm">
       <div class="card-body">
         {% if token %}
-          <label class="form-label small text-muted mb-1">你的 token</label>
-          <input type="text" class="form-control font-monospace mb-2"
-                 value="{{ token.key }}" readonly onclick="this.select()">
-          <div class="small text-muted">建立於 {{ token.created_at|date:"Y-m-d H:i" }}</div>
+          <label class="form-label small text-muted mb-1" for="token-field">你的 token</label>
+          <div class="input-group mb-2">
+            <input type="password" id="token-field" class="form-control font-monospace"
+                   value="{{ token.key }}" readonly>
+            <button type="button" class="btn btn-outline-secondary" id="token-toggle">顯示</button>
+            <button type="button" class="btn btn-outline-secondary" id="token-copy">複製</button>
+          </div>
+          <div class="small text-muted">
+            建立於 {{ token.created_at|date:"Y-m-d H:i" }}
+            <span id="token-copied" class="text-success ms-2 d-none">已複製</span>
+          </div>
         {% else %}
           <p class="mb-0 text-muted">你還沒有 token，按下面的按鈕產生一把。</p>
         {% endif %}
@@ -39,12 +47,47 @@
 
     {% if token %}
       <h2 class="h6 text-muted">用法</h2>
-      <pre class="bg-white border rounded p-3 small mb-2" style="overflow-x: auto;"><code>curl -H "Authorization: Bearer {{ token.key }}" {{ request.scheme }}://{{ request.get_host }}/api/tasks/</code></pre>
-      <p class="small text-muted">在 Windows PowerShell 請改用 <code>curl.exe</code>。</p>
+      <pre class="bg-white border rounded p-3 small mb-2" style="overflow-x: auto;"><code>curl -H "Authorization: Bearer $TOKEN" {{ request.scheme }}://{{ request.get_host }}/api/tasks/</code></pre>
+      <p class="small text-muted">
+        把 <code>$TOKEN</code> 換成上面複製的那串。
+        在 Windows PowerShell 請改用 <code>curl.exe</code>。
+      </p>
     {% endif %}
 
-    <a href="{% url 'todo:list' %}" class="small">← 回待辦清單</a>
+    <a href="{% url 'todo:settings' %}" class="small">← 回設定</a>
 
   </div>
 </div>
+
+{% if token %}
+<script>
+  (function () {
+    const field = document.getElementById("token-field");
+    const toggle = document.getElementById("token-toggle");
+    const copy = document.getElementById("token-copy");
+    const copied = document.getElementById("token-copied");
+
+    toggle.addEventListener("click", function () {
+      const hidden = field.type === "password";
+      field.type = hidden ? "text" : "password";
+      toggle.textContent = hidden ? "隱藏" : "顯示";
+    });
+
+    copy.addEventListener("click", async function () {
+      try {
+        await navigator.clipboard.writeText(field.value);
+      } catch (err) {
+        // 沒有剪貼簿權限時（例如非 HTTPS）退而求其次，把內容選起來讓使用者自己複製
+        const wasHidden = field.type === "password";
+        field.type = "text";
+        field.select();
+        document.execCommand("copy");
+        if (wasHidden) field.type = "password";
+      }
+      copied.classList.remove("d-none");
+      setTimeout(function () { copied.classList.add("d-none"); }, 2000);
+    });
+  })();
+</script>
+{% endif %}
 {% endblock %}

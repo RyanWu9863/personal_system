@@ -2,7 +2,7 @@
 
 [![tests](https://github.com/RyanWu9863/personal_system/actions/workflows/tests.yml/badge.svg)](https://github.com/RyanWu9863/personal_system/actions/workflows/tests.yml)
 
-多人待辦清單。同一份資料有兩種用法：**網頁介面**給人用，**JSON API**給程式用，兩邊共用同一套驗證規則。附 25 個測試，測試不通過就不會部署。
+多人待辦清單。同一份資料有兩種用法：**網頁介面**給人用，**JSON API**給程式用，兩邊共用同一套驗證規則。附 40 個測試，測試不通過就不會部署。
 
 **線上 Demo** → <https://personal-system-r5pf.onrender.com>
 Render 免費方案會休眠，第一次開啟約需等 30 秒。測試帳號：`demo` / `zxcv123456`
@@ -22,9 +22,9 @@ config/          專案設定
 todo/
   models.py      Task（待辦）、ApiToken（API 用的身分憑證）
   forms.py       TaskForm 驗證規則；TaskApiForm 繼承它，只多開放 is_done
-  views.py       網頁介面：清單、新增、切換完成、刪除
+  views.py       網頁介面：清單、新增、切換完成、刪除、註冊、設定
   api.py         JSON API：token 認證、統一錯誤格式、序列化
-  tests.py       25 個測試
+  tests.py       40 個測試
 build.sh         部署腳本：安裝 → 跑測試 → 收集靜態檔 → 資料庫遷移
 ```
 
@@ -40,14 +40,22 @@ build.sh         部署腳本：安裝 → 跑測試 → 收集靜態檔 → 資
 
 **安全設定只在正式環境生效**　HTTPS 強制轉址、Secure cookie、靜態檔 manifest 都包在 `if not DEBUG` 裡，本機開發與測試不會被轉址干擾。
 
+**認證頁模板放在專案層**　Django 後台自己帶了 `registration/password_reset_*.html`，
+而 `django.contrib.admin` 在 `INSTALLED_APPS` 裡排在本專案前面，放在 app 層會被它蓋掉——
+流程照跑，但畫面變成後台的版型。改放專案層的 `templates/`，其搜尋順序在所有 app 之前。
+
+**表單樣式集中在一個 mixin**　Django 內建的認證表單不帶 CSS class，
+`BootstrapFormMixin` 統一補上，登入、註冊、重設密碼三張表單因此長得一致，
+模板只負責把錯誤畫成紅色，不處理樣式。
+
 **token 輪替而非累積**　重新產生時覆寫同一筆記錄的金鑰，而不是多開一筆。一個使用者永遠只有一把有效 token，舊的立刻失效——金鑰外流時使用者能自行處理，不需要管理員介入。輪替端點只收 POST，避免被 GET 誤觸。
 
 **測試是部署的前置條件**　`build.sh` 裡 `manage.py test` 失敗就中斷，壞的程式碼進不了正式環境。
 
 ## API
 
-登入後在 `/token/` 自助產生 token，以 `Authorization: Bearer <token>` 帶入。
-重新產生會直接輪替同一筆記錄的金鑰，舊的立刻失效。
+登入後在「設定 → API token」自助產生，以 `Authorization: Bearer <token>` 帶入。
+頁面上預設遮住，可一鍵複製；重新產生會輪替同一筆記錄的金鑰，舊的立刻失效。
 
 | 方法 | 路徑 | 說明 |
 |---|---|---|
@@ -94,5 +102,6 @@ python manage.py runserver
 ## 已知取捨與下一步
 
 - **手寫 API 而非用 Django REST Framework**：為了看清認證、序列化、錯誤處理各自在做什麼。專案再長大就該換成 DRF。
+- **忘記密碼的信預設只印在 log 裡**（`EMAIL_BACKEND` 未設時走 console）。要真的寄出需設定 SMTP 相關環境變數。
 - **API token 以明文存放**。真實系統應只存雜湊、且只在產生當下顯示一次；這裡為了讓使用者隨時查得到而保留明文，改動範圍不大但會犧牲可查看性。
 - **測試只跑一個 Python 版本**（3.13），也還沒量測涵蓋率。

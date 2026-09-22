@@ -1,20 +1,19 @@
 from django.shortcuts import render ,redirect, get_object_or_404
 from .models import ApiToken, Task, generate_api_key
-from .forms import TaskForm
+from .forms import SignupForm, TaskForm
 from django.contrib.auth import login as auth_login
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.forms import UserCreationForm
 from django.views.decorators.http import require_POST
 
 def signup(request):
     if request.method == "POST":
-        form = UserCreationForm(request.POST)
+        form = SignupForm(request.POST)
         if form.is_valid():
             user = form.save()
             auth_login(request, user)
             return redirect("todo:list")
     else:
-        form = UserCreationForm()
+        form = SignupForm()
 
     # 不論是 GET，還是 POST 但驗證失敗，都要把表單重新畫出來
     return render(request, "registration/signup.html", {"form": form})
@@ -69,3 +68,8 @@ def api_token_regenerate(request):
         token.key = generate_api_key()
         token.save()
     return redirect("todo:api_token")
+
+@login_required
+def settings_page(request):
+    """設定頁：目前只有 API token 一項，之後要加別的都放這裡。"""
+    return render(request, "todo/settings.html")

@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}設定{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+
+    <h1 class="h4 mb-3">設定</h1>
+
+    <div class="list-group shadow-sm mb-4">
+      <a href="{% url 'todo:api_token' %}"
+         class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+        <span>
+          <span class="d-block">API token</span>
+          <small class="text-muted">用程式存取自己的待辦</small>
+        </span>
+        <span class="text-muted">›</span>
+      </a>
+    </div>
+
+    <a href="{% url 'todo:list' %}" class="small">← 回待辦清單</a>
+
+  </div>
+</div>
+{% endblock %}

@@ -1,6 +1,8 @@
+import re
 from datetime import date
 
 from django.contrib.auth import get_user_model
+from django.core import mail
 from django.test import TestCase
 from django.urls import reverse
 from .models import ApiToken
@@ -56,6 +58,30 @@ class SignupTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertFalse(User.objects.filter(username="newbie").exists())
+
+    def test_email_is_required(self):
+        """沒填 email 就不能註冊，否則之後無法重設密碼。"""
+        response = self.client.post(reverse("todo:signup"), {
+            "username": "newbie",
+            "password1": "a-good-password-42",
+            "password2": "a-good-password-42",
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(User.objects.filter(username="newbie").exists())
+
+    def test_signup_saves_the_email(self):
+        """註冊填的 email 要真的存進去。"""
+        self.client.post(reverse("todo:signup"), {
+            "username": "newbie",
+            "email": "newbie@example.com",
+            "password1": "a-good-password-42",
+            "password2": "a-good-password-42",
+        })
+
+        self.assertEqual(
+            User.objects.get(username="newbie").email, "newbie@example.com"
+        )
 
 class TaskFormTests(TestCase):
     def test_short_title_is_rejected(self):
@@ -299,3 +325,170 @@ class ApiTokenPageTests(TestCase):
         blocks = response.content.decode().split("<code>")[1:]
         example = next(b.split("</code>")[0] for b in blocks if "curl -H" in b)
         self.assertNotIn("\\", example)
+
+    def test_token_is_hidden_by_default(self):
+        """token 欄位預設要是遮住的，不能一進頁面就裸奔。"""
+        ApiToken.objects.create(user=self.alice)
+        self.client.force_login(self.alice)
+
+        response = self.client.get(self.page)
+
+        self.assertContains(response, 'type="password" id="token-field"')
+
+    def test_usage_example_does_not_contain_the_key(self):
+        """用法範例要用佔位符，不能把真的 token 印在上面。"""
+        token = ApiToken.objects.create(user=self.alice)
+        self.client.force_login(self.alice)
+
+        response = self.client.get(self.page)
+
+        blocks = response.content.decode().split("<code>")[1:]
+        example = next(b.split("</code>")[0] for b in blocks if "curl -H" in b)
+        self.assertIn("$TOKEN", example)
+        self.assertNotIn(token.key, example)
+
+
+class NavigationTests(TestCase):
+    """導覽列該給誰看什麼。"""
+
+    def setUp(self):
+        self.url = reverse("todo:list")
+
+    def test_admin_link_is_hidden_from_normal_users(self):
+        """一般使用者不該看到後台連結。"""
+        user = User.objects.create_user(username="alice", password="test-pw-1")
+        self.client.force_login(user)
+
+        response = self.client.get(self.url)
+
+        self.assertNotContains(response, "後台")
+
+    def test_admin_link_is_shown_to_staff(self):
+        """管理員才看得到後台連結。"""
+        staff = User.objects.create_user(
+            username="boss", password="test-pw-2", is_staff=True
+        )
+        self.client.force_login(staff)
+
+        response = self.client.get(self.url)
+
+        self.assertContains(response, "後台")
+
+
+class SettingsPageTests(TestCase):
+    def setUp(self):
+        self.url = reverse("todo:settings")
+
+    def test_anonymous_is_redirected_to_login(self):
+        """未登入看不到設定頁。"""
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/accounts/login/", response["Location"])
+
+    def test_links_to_api_token_page(self):
+        """設定頁要有進入 API token 的入口。"""
+        user = User.objects.create_user(username="alice", password="test-pw-1")
+        self.client.force_login(user)
+
+        response = self.client.get(self.url)
+
+        self.assertContains(response, reverse("todo:api_token"))
+
+
+class LoginPageTests(TestCase):
+    def setUp(self):
+        self.url = reverse("login")
+        User.objects.create_user(username="alice", password="test-pw-1")
+
+    def test_wrong_password_shows_error_in_red_alert(self):
+        """帳密錯誤時，訊息要放在紅色警示框裡。"""
+        response = self.client.post(
+            self.url, {"username": "alice", "password": "wrong-pw"}
+        )
+
+        self.assertEqual(response.status_code, 200)
+        error = response.context["form"].non_field_errors()[0]
+        self.assertContains(response, "alert-danger")
+        self.assertContains(response, error)
+
+    def test_page_links_to_password_reset(self):
+        """登入頁要有忘記密碼的入口。"""
+        response = self.client.get(self.url)
+
+        self.assertContains(response, reverse("password_reset"))
+
+
+class PasswordResetTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="alice", email="alice@example.com", password="old-pw-12345"
+        )
+
+    def test_reset_email_is_sent_to_a_registered_address(self):
+        """信箱有註冊過就會收到重設信。"""
+        response = self.client.post(
+            reverse("password_reset"), {"email": "alice@example.com"}
+        )
+
+        self.assertRedirects(response, reverse("password_reset_done"))
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn("alice@example.com", mail.outbox[0].to)
+
+    def test_unknown_email_sends_nothing_but_looks_the_same(self):
+        """沒註冊過的信箱不寄信，但畫面一樣，避免洩漏誰有帳號。"""
+        response = self.client.post(
+            reverse("password_reset"), {"email": "nobody@example.com"}
+        )
+
+        self.assertRedirects(response, reverse("password_reset_done"))
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_link_in_email_can_actually_change_the_password(self):
+        """照著信裡的連結走完，密碼真的會換掉。"""
+        self.client.post(reverse("password_reset"), {"email": "alice@example.com"})
+        path = re.search(r"/accounts/reset/[^/]+/[^/\s]+/", mail.outbox[0].body).group()
+
+        form_page = self.client.get(path, follow=True)
+        response = self.client.post(
+            form_page.request["PATH_INFO"],
+            {"new_password1": "brand-new-pw-99", "new_password2": "brand-new-pw-99"},
+        )
+
+        self.assertRedirects(response, reverse("password_reset_complete"))
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("brand-new-pw-99"))
+
+    def test_used_link_stops_working(self):
+        """同一個連結用過就不能再用。"""
+        self.client.post(reverse("password_reset"), {"email": "alice@example.com"})
+        path = re.search(r"/accounts/reset/[^/]+/[^/\s]+/", mail.outbox[0].body).group()
+        form_page = self.client.get(path, follow=True)
+        self.client.post(
+            form_page.request["PATH_INFO"],
+            {"new_password1": "brand-new-pw-99", "new_password2": "brand-new-pw-99"},
+        )
+
+        response = self.client.get(path, follow=True)
+
+        self.assertFalse(response.context["validlink"])
+
+    def test_reset_pages_use_the_site_layout(self):
+        """四個重設頁都要用站內版型。
+
+        Django 後台自己帶了同名的 registration/password_reset_*.html，
+        且 django.contrib.admin 排在 todo 前面，放在 app 層會被蓋掉。
+        """
+        self.client.post(reverse("password_reset"), {"email": "alice@example.com"})
+        path = re.search(r"/accounts/reset/[^/]+/[^/\s]+/", mail.outbox[0].body).group()
+
+        pages = [
+            self.client.get(reverse("password_reset")),
+            self.client.get(reverse("password_reset_done")),
+            self.client.get(path, follow=True),
+            self.client.get(reverse("password_reset_complete")),
+        ]
+
+        for page in pages:
+            self.assertContains(page, "我的待辦清單")
+            self.assertNotContains(page, "Django 網站管理")
