@@ -39,8 +39,8 @@
 
     {% if token %}
       <h2 class="h6 text-muted">用法</h2>
-      <pre class="bg-white border rounded p-3 small"><code>curl -H "Authorization: Bearer {{ token.key }}" \
-  {{ request.scheme }}://{{ request.get_host }}/api/tasks/</code></pre>
+      <pre class="bg-white border rounded p-3 small mb-2" style="overflow-x: auto;"><code>curl -H "Authorization: Bearer {{ token.key }}" {{ request.scheme }}://{{ request.get_host }}/api/tasks/</code></pre>
+      <p class="small text-muted">在 Windows PowerShell 請改用 <code>curl.exe</code>。</p>
     {% endif %}
 
     <a href="{% url 'todo:list' %}" class="small">← 回待辦清單</a>

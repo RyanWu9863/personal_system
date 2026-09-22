@@ -288,3 +288,14 @@ class ApiTokenPageTests(TestCase):
 
         self.assertContains(response, alice_token.key)
         self.assertNotContains(response, bob_token.key)
+
+    def test_curl_example_is_a_single_line(self):
+        """用法範例不能用反斜線續行，否則在 PowerShell 貼上會失敗。"""
+        ApiToken.objects.create(user=self.alice)
+        self.client.force_login(self.alice)
+
+        response = self.client.get(self.page)
+
+        blocks = response.content.decode().split("<code>")[1:]
+        example = next(b.split("</code>")[0] for b in blocks if "curl -H" in b)
+        self.assertNotIn("\\", example)

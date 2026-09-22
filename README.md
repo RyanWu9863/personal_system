@@ -2,7 +2,7 @@
 
 [![tests](https://github.com/RyanWu9863/personal_system/actions/workflows/tests.yml/badge.svg)](https://github.com/RyanWu9863/personal_system/actions/workflows/tests.yml)
 
-多人待辦清單。同一份資料有兩種用法：**網頁介面**給人用，**JSON API**給程式用，兩邊共用同一套驗證規則。附 24 個測試，測試不通過就不會部署。
+多人待辦清單。同一份資料有兩種用法：**網頁介面**給人用，**JSON API**給程式用，兩邊共用同一套驗證規則。附 25 個測試，測試不通過就不會部署。
 
 **線上 Demo** → <https://personal-system-r5pf.onrender.com>
 Render 免費方案會休眠，第一次開啟約需等 30 秒。測試帳號：`demo` / `zxcv123456`
@@ -24,7 +24,7 @@ todo/
   forms.py       TaskForm 驗證規則；TaskApiForm 繼承它，只多開放 is_done
   views.py       網頁介面：清單、新增、切換完成、刪除
   api.py         JSON API：token 認證、統一錯誤格式、序列化
-  tests.py       24 個測試
+  tests.py       25 個測試
 build.sh         部署腳本：安裝 → 跑測試 → 收集靜態檔 → 資料庫遷移
 ```
 
