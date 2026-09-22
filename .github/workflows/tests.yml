@@ -1,0 +1,37 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: 安裝套件
+        run: pip install -r requirements.txt
+
+      # 用開發設定跑，避開正式環境的 HTTPS 強制轉址
+      - name: 跑測試
+        env:
+          DEBUG: "True"
+          DATABASE_URL: "sqlite:///ci-test.sqlite3"
+        run: python manage.py test --verbosity 2
+
+      # 確認正式環境的設定組合能通過 Django 的部署檢查
+      - name: 檢查正式環境設定
+        env:
+          DEBUG: "False"
+          SECRET_KEY: "ci-only-dummy-key-never-used-outside-this-check-0123456789abcdef"
+          DATABASE_URL: "sqlite:///ci-check.sqlite3"
+        run: python manage.py check --deploy --fail-level ERROR

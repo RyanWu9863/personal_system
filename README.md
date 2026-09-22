@@ -1,5 +1,7 @@
 # 待辦清單 · Todo
 
+[![tests](https://github.com/RyanWu9863/personal_system/actions/workflows/tests.yml/badge.svg)](https://github.com/RyanWu9863/personal_system/actions/workflows/tests.yml)
+
 多人待辦清單。同一份資料有兩種用法：**網頁介面**給人用，**JSON API**給程式用，兩邊共用同一套驗證規則。附 17 個測試，測試不通過就不會部署。
 
 **線上 Demo** → <https://personal-system-r5pf.onrender.com>
@@ -68,7 +70,9 @@ curl -H "Authorization: Bearer $TOKEN" https://personal-system-r5pf.onrender.com
 DEBUG=True DATABASE_URL="sqlite:///build-test.sqlite3" python manage.py test
 ```
 
-用開發設定跑，避開正式環境的 HTTPS 強制轉址。涵蓋範圍：
+用開發設定跑，避開正式環境的 HTTPS 強制轉址。
+
+每次 push 與 PR 會由 GitHub Actions 自動執行同一套測試，並額外以正式環境的設定組合跑一次 `manage.py check --deploy`。涵蓋範圍：
 
 - **權限與資料隔離**　未登入導向登入頁、清單只顯示自己的、不能刪別人的
 - **表單驗證**　標題太短被擋、弱密碼回傳表單而非 500
@@ -88,4 +92,4 @@ python manage.py runserver
 
 - **手寫 API 而非用 Django REST Framework**：為了看清認證、序列化、錯誤處理各自在做什麼。專案再長大就該換成 DRF。
 - **API token 目前只能從管理後台建立**，還缺一個讓使用者自助產生的頁面。
-- **尚未接 CI**，測試目前靠 `build.sh` 在部署時執行，之後要加 GitHub Actions 在每次 push 就跑。
+- **測試只跑一個 Python 版本**（3.13），也還沒量測涵蓋率。
