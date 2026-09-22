@@ -18,7 +18,8 @@ from django.contrib import admin
 from django.contrib.auth import views as auth_views
 from django.urls import path, include
 
-from todo.forms import StyledAuthenticationForm, StyledPasswordResetForm, StyledSetPasswordForm
+from todo import views as todo_views
+from todo.forms import StyledAuthenticationForm, StyledSetPasswordForm
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -30,7 +31,7 @@ urlpatterns = [
     ),
     path(
         "accounts/password_reset/",
-        auth_views.PasswordResetView.as_view(form_class=StyledPasswordResetForm),
+        todo_views.PasswordResetView.as_view(),
         name="password_reset",
     ),
     path(

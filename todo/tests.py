@@ -1,4 +1,6 @@
 import re
+from smtplib import SMTPException
+from unittest.mock import patch
 from datetime import date
 
 from django.contrib.auth import get_user_model
@@ -492,3 +494,14 @@ class PasswordResetTests(TestCase):
         for page in pages:
             self.assertContains(page, "我的待辦清單")
             self.assertNotContains(page, "Django 網站管理")
+
+    @patch("django.contrib.auth.forms.PasswordResetForm.save", side_effect=SMTPException)
+    def test_mail_failure_shows_an_error_instead_of_500(self, _):
+        """寄信失敗要回到表單顯示錯誤，不能讓使用者看到 500。"""
+        response = self.client.post(
+            reverse("password_reset"), {"email": "alice@example.com"}
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "alert-danger")
+        self.assertContains(response, "目前無法寄出重設信")
